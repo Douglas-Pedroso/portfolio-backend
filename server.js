@@ -1,4 +1,4 @@
-// Backend básico para votos de avaliação do portfólio
+// Backend básico para votos de avaliação do portfólio com token único
 const express = require('express');
 const cors = require('cors');
 const sqlite3 = require('sqlite3').verbose();
@@ -18,24 +18,33 @@ const db = new sqlite3.Database('./votos.db', (err) => {
   db.run(`
     CREATE TABLE IF NOT EXISTS votos (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      nota INTEGER NOT NULL
+      nota INTEGER NOT NULL,
+      token TEXT UNIQUE
     )
   `, (err) => {
     if (err) console.error("Erro ao criar tabela:", err.message);
   });
 });
 
-// Rota para registrar voto
+// Rota para registrar voto (com token único)
 app.post('/api/votar', (req, res) => {
-  const { nota } = req.body;
+  const { nota, token } = req.body;
   const notaInt = parseInt(nota, 10);
 
   if (!Number.isInteger(notaInt) || notaInt < 1 || notaInt > 5) {
     return res.status(400).json({ success: false, error: 'Nota inválida' });
   }
 
-  db.run('INSERT INTO votos (nota) VALUES (?)', [notaInt], function (err) {
+  if (!token) {
+    return res.status(400).json({ success: false, error: 'Token não fornecido' });
+  }
+
+  db.run('INSERT INTO votos (nota, token) VALUES (?, ?)', [notaInt, token], function(err) {
     if (err) {
+      // Se violação de unicidade, usuário já votou
+      if (err.message.includes('UNIQUE constraint failed')) {
+        return res.status(400).json({ success: false, error: 'Você já votou!' });
+      }
       console.error("Erro ao inserir voto:", err.message);
       return res.status(500).json({ success: false, error: 'Erro ao registrar voto' });
     }
