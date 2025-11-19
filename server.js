@@ -66,3 +66,39 @@ app.get('/api/avaliacao', async (req, res) => {
 app.listen(PORT, () => {
   console.log(`✅ Backend de avaliação rodando em http://localhost:${PORT}`);
 });
+
+// Rota para enviar comentário
+app.post('/api/comentarios', async (req, res) => {
+  try {
+    const { nome, comentario } = req.body;
+
+    if (!nome || !comentario) {
+      return res.status(400).json({ success: false, error: 'Nome e comentário são obrigatórios' });
+    }
+
+    await pool.query(
+      'INSERT INTO comentarios (nome, comentario) VALUES ($1, $2)',
+      [nome, comentario]
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Erro ao registrar comentário:", err);
+    res.status(500).json({ success: false, error: 'Erro ao registrar comentário' });
+  }
+});
+
+// Rota para buscar comentários
+app.get('/api/comentarios', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT id, nome, comentario, criado_em FROM comentarios ORDER BY criado_em DESC'
+    );
+
+    res.json({ success: true, comentarios: result.rows });
+  } catch (err) {
+    console.error("Erro ao buscar comentários:", err);
+    res.status(500).json({ success: false, error: 'Erro ao buscar comentários' });
+  }
+});
+
